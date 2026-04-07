@@ -20,12 +20,24 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
 app.post('/registrar', async (req, res) => {
   try {
     const { nome, senha } = req.body;
+    if (!nome || !senha) {
+      return res.status(400).send("Nome e senha são obrigatórios.");
+    }
+
+    const usuarioExistente = await Usuario.findOne({ nome });
+    if (usuarioExistente) {
+      return res.status(400).send("Usuário já existe!");
+    }
+
     const hash = await bcrypt.hash(senha, 10);
     const novoUsuario = new Usuario({ nome, senha: hash });
     await novoUsuario.save();
     res.send("Conta criada com sucesso!");
   } catch (err) {
-    res.send("Erro ao criar conta: " + err.message);
+    if (err.code === 11000) {
+      return res.status(400).send("Usuário já existe!");
+    }
+    res.status(500).send("Erro ao criar conta: " + err.message);
   }
 });
 

@@ -20,7 +20,8 @@
       border: 0.0625rem solid transparent;
       box-shadow: black 0px 0px 0.3rem 0.1rem inset;
       width: 300px;
-      height: 150px;
+      min-height: 150px;
+      height: auto;
       text-align: center;
     }
     h2 {
@@ -72,6 +73,22 @@
       font-size: 14px;
       text-decoration: underline;
     }
+    .message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #fff;
+      display: none;
+    }
+    .message.success {
+      display: block;
+      background: #2d7a2d;
+    }
+    .message.error {
+      display: block;
+      background: #a12a2a;
+    }
     .hidden {
       display: none;
     }
@@ -114,9 +131,9 @@
   <div class="container">
     <!-- Formulário de Login -->
     <div class="MainButton"><strong>ENTRAR</strong></div>
-    <div id="loginForm">
+    <div id="loginSection">
       <div class="toggle" onclick="toggleForms()">Não tem conta? Cadastre-se</div>
-      <form action="/login" method="POST">
+      <form id="loginForm" action="/login" method="POST">
         <input type="text" name="nome" placeholder="Nome" required>
         <input type="password" name="senha" placeholder="Senha" required>
         <button type="submit">Entrar</button>
@@ -125,22 +142,24 @@
     </div>
 
     <!-- Formulário de Cadastro -->
-    <div id="registerForm" class="hidden">
+    <div id="registerSection" class="hidden">
       <div class="MainButton"><strong>CRIAR CONTA</strong></div>
       <div class="toggle" onclick="toggleForms()">Já tem conta? Faça login</div>
-      <form action="/registrar" method="POST">
+      <form id="criarForm" action="/registrar" method="POST">
         <input type="text" name="nome" placeholder="Nome" required>
         <input type="password" name="senha" placeholder="Senha" required>
         <button type="submit">Registrar</button>
       </form>
       
     </div>
+
+    <div id="message" class="message"></div>
   </div>
 
   <script>
     function toggleForms() {
-      document.getElementById("loginForm").classList.toggle("hidden");
-      document.getElementById("registerForm").classList.toggle("hidden");
+      document.getElementById("loginSection").classList.toggle("hidden");
+      document.getElementById("registerSection").classList.toggle("hidden");
     }
   </script>
  <script>
@@ -154,36 +173,44 @@
       return res.text();
     }
 
+    function mostrarMensagem(texto, isSuccess = false) {
+      const messageEl = document.getElementById("message");
+      messageEl.textContent = texto;
+      messageEl.className = isSuccess ? "message success" : "message error";
+    }
+
     // Cadastro
     document.getElementById("criarForm").addEventListener("submit", async e => {
       e.preventDefault();
-      const nome = e.target.nome.value;
+      const nome = e.target.nome.value.trim();
       const senha = e.target.senha.value;
       const resposta = await enviarDados("/registrar", { nome, senha });
-      alert(resposta);
-      if (resposta.includes("sucesso")) {
+      const sucesso = resposta.toLowerCase().includes("sucesso");
+      mostrarMensagem(resposta, sucesso);
+      if (sucesso) {
         localStorage.setItem("usuarioLogado", nome);
-        document.window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
+        window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
       }
     });
 
     // Login
     document.getElementById("loginForm").addEventListener("submit", async e => {
       e.preventDefault();
-      const nome = e.target.nome.value;
+      const nome = e.target.nome.value.trim();
       const senha = e.target.senha.value;
       const resposta = await enviarDados("/login", { nome, senha });
-      alert(resposta);
-      if (resposta.includes("sucesso")) {
+      const sucesso = resposta.toLowerCase().includes("sucesso");
+      mostrarMensagem(resposta, sucesso);
+      if (sucesso) {
         localStorage.setItem("usuarioLogado", nome);
-        document.window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
+        window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
       }
     });
 
     // Mostrar quem está logado
     const usuario = localStorage.getItem("usuarioLogado");
     if (usuario) {
-      alert("Usuário logado: " + usuario);
+      mostrarMensagem("Usuário logado: " + usuario, true);
     }
  </script>
 </body>
