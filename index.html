@@ -89,6 +89,12 @@
       display: block;
       background: #a12a2a;
     }
+    .message {
+      width: 300px;
+      margin: 10px auto 0;
+      text-align: center;
+      word-break: break-word;
+    }
     .hidden {
       display: none;
     }
@@ -133,7 +139,7 @@
     <div class="MainButton"><strong>ENTRAR</strong></div>
     <div id="loginSection">
       <div class="toggle" onclick="toggleForms()">Não tem conta? Cadastre-se</div>
-      <form id="loginForm" action="/login" method="POST">
+      <form id="loginForm" action="/login" method="POST" onsubmit="return false;">
         <input type="text" name="nome" placeholder="Nome" required>
         <input type="password" name="senha" placeholder="Senha" required>
         <button type="submit">Entrar</button>
@@ -145,7 +151,7 @@
     <div id="registerSection" class="hidden">
       <div class="MainButton"><strong>CRIAR CONTA</strong></div>
       <div class="toggle" onclick="toggleForms()">Já tem conta? Faça login</div>
-      <form id="criarForm" action="/registrar" method="POST">
+      <form id="criarForm" action="/registrar" method="POST" onsubmit="return false;">
         <input type="text" name="nome" placeholder="Nome" required>
         <input type="password" name="senha" placeholder="Senha" required>
         <button type="submit">Registrar</button>
@@ -153,8 +159,8 @@
       
     </div>
 
-    <div id="message" class="message"></div>
   </div>
+  <div id="message" class="message"></div>
 
   <script>
     function toggleForms() {
@@ -170,7 +176,11 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dados)
       });
-      return res.text();
+      const text = await res.text();
+      if (!res.ok) {
+        return `${res.status} ${res.statusText}: ${text}`;
+      }
+      return text;
     }
 
     function mostrarMensagem(texto, isSuccess = false) {
@@ -186,6 +196,9 @@
       const senha = e.target.senha.value;
       const resposta = await enviarDados("/registrar", { nome, senha });
       const sucesso = resposta.toLowerCase().includes("sucesso");
+      if (!sucesso) {
+        alert(resposta);
+      }
       mostrarMensagem(resposta, sucesso);
       if (sucesso) {
         localStorage.setItem("usuarioLogado", nome);
@@ -200,6 +213,9 @@
       const senha = e.target.senha.value;
       const resposta = await enviarDados("/login", { nome, senha });
       const sucesso = resposta.toLowerCase().includes("sucesso");
+      if (!sucesso) {
+        alert(resposta);
+      }
       mostrarMensagem(resposta, sucesso);
       if (sucesso) {
         localStorage.setItem("usuarioLogado", nome);
