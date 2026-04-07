@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Login e Criar Conta</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('bg.png');
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background-image: url("grey.jpg");
+      padding: 40px;
+      border-radius: 0.375rem;
+      border: 0.0625rem solid transparent;
+      box-shadow: black 0px 0px 0.3rem 0.1rem inset;
+      width: 300px;
+      height: 150px;
+      text-align: center;
+    }
+    h2 {
+      color: #6a1b9a;
+      margin-bottom: 20px;
+    }
+    input {
+      width: 75%;
+      padding: 6px;
+      background: linear-gradient(rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.7) 100%) padding-box padding-box, linear-gradient(rgba(255, 255, 255, 0.25) 0%, rgb(255, 255, 255) 100%) border-box border-box;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      transition: border-color 0.3s;
+    }
+    input:focus {
+      border-color: #585858;
+      outline: none;
+    }
+    button {
+      width: 30%;
+      padding: 12px;
+      margin-top: 10px;
+      margin-left: 220px;
+      border-radius: 6px;
+      border: none;
+      background-image: url("dark_grey.jpg");
+      border-image: url("button2.svg") 10 stretch;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    @font-face {
+        font-family: "fonte";
+        src: url(fonte.woff2) format("woff2");
+    }
+    @font-face {
+        font-family: "fonte2";
+        src: url(fonte2.woff2) format("woff2");
+    }
+    button:hover {
+      background: #201c22;
+    }
+    .toggle {
+      margin-top: 15px;
+      color: #00f128;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: underline;
+    }
+    .hidden {
+      display: none;
+    }
+    .MainButton {
+    position: absolute;
+    color: #f0f0f0;
+    top: -2.05rem;
+    font-family: "fonte2";
+    left: 50%;
+    top: 26%;
+    transform: translate(-50%);
+    box-sizing: border-box;
+    min-width: 10rem;
+    padding: 0.5rem 0.625rem;
+    white-space: nowrap;
+    display: flex;
+    -webkit-box-pack: center;
+    justify-content: center;
+    -webkit-box-align: center;
+    align-items: center;
+    background: url("dark_grey.jpg") padding-box padding-box, linear-gradient(rgba(255, 255, 255, 0.25) 0%, rgba(0, 0, 0, 0.5) 100%) border-box border-box;
+    border-radius: 0.4375rem 0.4375rem 0.4375rem 0px;
+    border-top-left-radius: 0.4375rem;
+    border-top-right-radius: 0.4375rem;
+    border-bottom-right-radius: 0.4375rem;
+    border-bottom-left-radius: 0px;
+    border-image-width: 0.75rem;
+    border-image-slice: 10;
+    border-image-repeat: unset;
+    border-image-source: url(button.svg);
+    }
+    h4 {
+      color: #ffffff;
+      margin-right: 300px;
+    }
+    
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Formulário de Login -->
+    <div class="MainButton"><strong>ENTRAR</strong></div>
+    <div id="loginForm">
+      <div class="toggle" onclick="toggleForms()">Não tem conta? Cadastre-se</div>
+      <form action="/login" method="POST">
+        <input type="text" name="nome" placeholder="Nome" required>
+        <input type="password" name="senha" placeholder="Senha" required>
+        <button type="submit">Entrar</button>
+      </form>
+      
+    </div>
+
+    <!-- Formulário de Cadastro -->
+    <div id="registerForm" class="hidden">
+      <div class="MainButton"><strong>CRIAR CONTA</strong></div>
+      <div class="toggle" onclick="toggleForms()">Já tem conta? Faça login</div>
+      <form action="/registrar" method="POST">
+        <input type="text" name="nome" placeholder="Nome" required>
+        <input type="password" name="senha" placeholder="Senha" required>
+        <button type="submit">Registrar</button>
+      </form>
+      
+    </div>
+  </div>
+
+  <script>
+    function toggleForms() {
+      document.getElementById("loginForm").classList.toggle("hidden");
+      document.getElementById("registerForm").classList.toggle("hidden");
+    }
+  </script>
+ <script>
+    // Função para enviar dados ao servidor
+    async function enviarDados(url, dados) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dados)
+      });
+      return res.text();
+    }
+
+    // Cadastro
+    document.getElementById("criarForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const nome = e.target.nome.value;
+      const senha = e.target.senha.value;
+      const resposta = await enviarDados("/registrar", { nome, senha });
+      alert(resposta);
+      if (resposta.includes("sucesso")) {
+        localStorage.setItem("usuarioLogado", nome);
+        document.window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
+      }
+    });
+
+    // Login
+    document.getElementById("loginForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const nome = e.target.nome.value;
+      const senha = e.target.senha.value;
+      const resposta = await enviarDados("/login", { nome, senha });
+      alert(resposta);
+      if (resposta.includes("sucesso")) {
+        localStorage.setItem("usuarioLogado", nome);
+        document.window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
+      }
+    });
+
+    // Mostrar quem está logado
+    const usuario = localStorage.getItem("usuarioLogado");
+    if (usuario) {
+      alert("Usuário logado: " + usuario);
+    }
+ </script>
+</body>
+</html>
