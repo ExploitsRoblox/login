@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Login e Criar Conta</title>
+  <title>Sala Do Futuro Aluno</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -104,7 +104,7 @@
     top: -2.05rem;
     font-family: "fonte2";
     left: 50%;
-    top: 26%;
+    top: 22%;
     transform: translate(-50%);
     box-sizing: border-box;
     min-width: 10rem;
@@ -168,66 +168,48 @@
       document.getElementById("registerSection").classList.toggle("hidden");
     }
   </script>
- <script>
-    // Função para enviar dados ao servidor
-    async function enviarDados(url, dados) {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dados)
-      });
-      const text = await res.text();
-      if (!res.ok) {
-        return `${res.status} ${res.statusText}: ${text}`;
-      }
-      return text;
-    }
-
-    function mostrarMensagem(texto, isSuccess = false) {
-      const messageEl = document.getElementById("message");
-      messageEl.textContent = texto;
-      messageEl.className = isSuccess ? "message success" : "message error";
-    }
-
-    // Cadastro
-    document.getElementById("criarForm").addEventListener("submit", async e => {
-      e.preventDefault();
-      const nome = e.target.nome.value.trim();
-      const senha = e.target.senha.value;
-      const resposta = await enviarDados("/registrar", { nome, senha });
-      const sucesso = resposta.toLowerCase().includes("sucesso");
-      if (!sucesso) {
-        alert(resposta);
-      }
-      mostrarMensagem(resposta, sucesso);
-      if (sucesso) {
-        localStorage.setItem("usuarioLogado", nome);
-        window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
-      }
+  <script>
+  async function enviarDados(url, dados) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados)
     });
+    return res.text();
+  }
 
-    // Login
-    document.getElementById("loginForm").addEventListener("submit", async e => {
-      e.preventDefault();
-      const nome = e.target.nome.value.trim();
-      const senha = e.target.senha.value;
-      const resposta = await enviarDados("/login", { nome, senha });
-      const sucesso = resposta.toLowerCase().includes("sucesso");
-      if (!sucesso) {
-        alert(resposta);
-      }
-      mostrarMensagem(resposta, sucesso);
-      if (sucesso) {
-        localStorage.setItem("usuarioLogado", nome);
-        window.location.href = "https://exploitsroblox.github.io/games"; // Redireciona para a página principal
-      }
-    });
-
-    // Mostrar quem está logado
-    const usuario = localStorage.getItem("usuarioLogado");
-    if (usuario) {
-      mostrarMensagem("Usuário logado: " + usuario, true);
+  // Cadastro
+  document.getElementById("criarForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const nome = e.target.nome.value.trim();
+    const senha = e.target.senha.value;
+    const resposta = await enviarDados("/registrar", { nome, senha });
+    alert(resposta);
+    if (resposta.toLowerCase().includes("sucesso")) {
+      localStorage.setItem("usuarioLogado", nome);
+      window.location.href = "https://exploitsroblox.github.io/games";
     }
- </script>
+  });
+
+  // Login
+  document.getElementById("loginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const nome = e.target.nome.value.trim();
+    const senha = e.target.senha.value;
+    const resposta = await enviarDados("/login", { nome, senha });
+    alert(resposta);
+    if (resposta.toLowerCase().includes("sucesso")) {
+      localStorage.setItem("usuarioLogado", nome);
+      window.location.href = "https://exploitsroblox.github.io/games";
+    }
+  });
+
+  // Mostrar quem está logado (sem alert)
+  const usuario = localStorage.getItem("usuarioLogado");
+  if (usuario) {
+    document.body.insertAdjacentHTML("beforeend", `<p>Usuário logado: ${usuario}</p>`);
+  }
+</script>
+
 </body>
 </html>
