@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const app = express();
 
 app.use(express.json());
+app.use(cors({ origin: "https://exploristtools.github.io" }));
 
 //MongoDB
 mongoose.connect("mongodb+srv://Admin:cleusaaposentou@nexusgames.96iuubq.mongodb.net/?appName=nexusgames")
