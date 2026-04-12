@@ -77,6 +77,32 @@ function autenticar(req, res, next) {
   });
 }
 
+// Salvar backup (rota protegida)
+app.post("/salvarBackup", autenticar, async (req, res) => {
+  try {
+    const { dados } = req.body;
+    await Backup.updateOne(
+      { usuario: req.usuario.nome },
+      { dados, atualizadoEm: new Date() },
+      { upsert: true }
+    );
+    res.json({ ok: true, mensagem: "Backup salvo com sucesso!" });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao salvar backup: " + err.message });
+  }
+});
+
+// Carregar backup (rota protegida)
+app.get("/carregarBackup", autenticar, async (req, res) => {
+  try {
+    const backup = await Backup.findOne({ usuario: req.usuario.nome });
+    if (!backup) return res.json({ ok: false, dados: {} });
+    res.json({ ok: true, dados: backup.dados });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao carregar backup: " + err.message });
+  }
+});
+
 app.get("/dadosSecretos", autenticar, (req, res) => {
   res.send(`Bem-vindo, ${req.usuario.nome}! Aqui estão seus dados secretos.`);
 });

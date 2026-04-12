@@ -177,12 +177,15 @@ document.getElementById("criarForm").addEventListener("submit", async e => {
   const nome = e.target.nome.value.trim();
   const senha = e.target.senha.value;
   const resposta = await enviarDados(`${API_URL}/registrar`, { nome, senha });
-  alert(resposta);
-  if (resposta.toLowerCase().includes("sucesso")) {
+
+  alert(resposta.mensagem || resposta);
+
+  if (resposta.ok || (resposta.mensagem+"").toLowerCase().includes("sucesso")) {
     localStorage.setItem("usuarioLogado", nome);
     window.location.href = "https://exploitsroblox.github.io/games";
   }
 });
+
 
 // Login
 document.getElementById("loginForm").addEventListener("submit", async e => {
@@ -190,13 +193,18 @@ document.getElementById("loginForm").addEventListener("submit", async e => {
   const nome = e.target.nome.value.trim();
   const senha = e.target.senha.value;
   const resposta = await enviarDados(`${API_URL}/login`, { nome, senha });
-  alert(resposta);
-  if (resposta.toLowerCase().includes("sucesso")) {
-    localStorage.setItem("token", resposta.token);
+
+  alert(resposta.mensagem); // mostra a mensagem do servidor
+
+  if (resposta.ok) {
+    localStorage.setItem("token", resposta.token); // agora funciona
     localStorage.setItem("usuarioLogado", nome);
     window.location.href = "https://exploitsroblox.github.io/games";
+  } else {
+    alert(resposta.mensagem || "Erro no login");
   }
 });
+
 
 // Função auxiliar
 async function enviarDados(url, dados) {
@@ -205,7 +213,7 @@ async function enviarDados(url, dados) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados)
   });
-  return res.text();
+  return res.json(); // <-- importante
 }
 
 
