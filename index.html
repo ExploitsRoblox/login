@@ -192,6 +192,7 @@ document.getElementById("loginForm").addEventListener("submit", async e => {
   const resposta = await enviarDados(`${API_URL}/login`, { nome, senha });
   alert(resposta);
   if (resposta.toLowerCase().includes("sucesso")) {
+    localStorage.setItem("token", resposta.token);
     localStorage.setItem("usuarioLogado", nome);
     window.location.href = "https://exploitsroblox.github.io/games";
   }
