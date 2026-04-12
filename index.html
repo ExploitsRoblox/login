@@ -213,8 +213,9 @@ async function enviarDados(url, dados) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados)
   });
-  return res.json(); // <-- importante
+  return res.json(); // interpreta como objeto JSON
 }
+
 
 
   // Mostrar quem está logado (sem alert)

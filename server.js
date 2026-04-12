@@ -22,46 +22,43 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
 }));
 
 // Cadastro
-app.post('/registrar', async (req, res) => {
+// Registro
+app.post("/registrar", async (req, res) => {
   try {
     const { nome, senha } = req.body;
-    if (!nome || !senha) {
-      return res.status(400).send("Nome e senha são obrigatórios.");
-    }
-
-    const usuarioExistente = await Usuario.findOne({ nome });
-    if (usuarioExistente) {
-      return res.status(400).send("Usuário já existe!");
+    const existente = await Usuario.findOne({ nome });
+    if (existente) {
+      return res.status(400).json({ ok: false, mensagem: "Usuário já existe!" });
     }
 
     const hash = await bcrypt.hash(senha, 10);
     const novoUsuario = new Usuario({ nome, senha: hash });
     await novoUsuario.save();
-    res.send("Conta criada com sucesso!");
+
+    res.json({ ok: true, mensagem: "Conta criada com sucesso!" });
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).send("Usuário já existe!");
-    }
-    res.status(500).send("Erro ao criar conta: " + err.message);
+    res.status(500).json({ ok: false, mensagem: "Erro ao criar conta: " + err.message });
   }
 });
 
 // Login
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
   try {
     const { nome, senha } = req.body;
     const usuario = await Usuario.findOne({ nome });
-    if (!usuario) return res.status(401).send("Usuário não encontrado!");
+    if (!usuario) {
+      return res.status(400).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
 
     const valido = await bcrypt.compare(senha, usuario.senha);
-    if (!valido) return res.status(401).send("Senha incorreta!");
+    if (!valido) {
+      return res.status(400).json({ ok: false, mensagem: "Senha incorreta!" });
+    }
 
-    // Gerar token JWT
     const token = jwt.sign({ nome: usuario.nome }, SECRET, { expiresIn: "1h" });
-
     res.json({ ok: true, mensagem: "Login realizado com sucesso!", token });
   } catch (err) {
-    res.status(500).send("Erro no login: " + err.message);
+    res.status(500).json({ ok: false, mensagem: "Erro no login: " + err.message });
   }
 });
 
