@@ -5,8 +5,8 @@ const app = express();
 
 app.use(express.json());
 
-// Conexão MongoDB
-mongoose.connect("mongodb+srv://supergodmodeo_db_user:QE47pW7qv5IEAPjE@nexusgames.96iuubq.mongodb.net/?appName=nexusgames")
+//MongoDB
+mongoose.connect("mongodb+srv://Admin:cleusaaposentou@nexusgames.96iuubq.mongodb.net/?appName=nexusgames")
   .then(() => console.log("Conectado ao MongoDB Atlas"))
   .catch(err => console.error("Erro na conexão:", err));
 
@@ -58,4 +58,5 @@ app.post('/login', async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("Servidor rodando em http://localhost:3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));

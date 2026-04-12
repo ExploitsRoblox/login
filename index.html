@@ -169,40 +169,44 @@
     }
   </script>
   <script>
-  async function enviarDados(url, dados) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(dados)
-    });
-    return res.text();
+  const API_URL = "https://login-g50h.onrender.com";
+
+// Cadastro
+document.getElementById("criarForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const nome = e.target.nome.value.trim();
+  const senha = e.target.senha.value;
+  const resposta = await enviarDados(`${API_URL}/registrar`, { nome, senha });
+  alert(resposta);
+  if (resposta.toLowerCase().includes("sucesso")) {
+    localStorage.setItem("usuarioLogado", nome);
+    window.location.href = "https://exploitsroblox.github.io/games";
   }
+});
 
-  // Cadastro
-  document.getElementById("criarForm").addEventListener("submit", async e => {
-    e.preventDefault();
-    const nome = e.target.nome.value.trim();
-    const senha = e.target.senha.value;
-    const resposta = await enviarDados("/registrar", { nome, senha });
-    alert(resposta);
-    if (resposta.toLowerCase().includes("sucesso")) {
-      localStorage.setItem("usuarioLogado", nome);
-      window.location.href = "https://exploitsroblox.github.io/games";
-    }
-  });
+// Login
+document.getElementById("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const nome = e.target.nome.value.trim();
+  const senha = e.target.senha.value;
+  const resposta = await enviarDados(`${API_URL}/login`, { nome, senha });
+  alert(resposta);
+  if (resposta.toLowerCase().includes("sucesso")) {
+    localStorage.setItem("usuarioLogado", nome);
+    window.location.href = "https://exploitsroblox.github.io/games";
+  }
+});
 
-  // Login
-  document.getElementById("loginForm").addEventListener("submit", async e => {
-    e.preventDefault();
-    const nome = e.target.nome.value.trim();
-    const senha = e.target.senha.value;
-    const resposta = await enviarDados("/login", { nome, senha });
-    alert(resposta);
-    if (resposta.toLowerCase().includes("sucesso")) {
-      localStorage.setItem("usuarioLogado", nome);
-      window.location.href = "https://exploitsroblox.github.io/games";
-    }
+// Função auxiliar
+async function enviarDados(url, dados) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados)
   });
+  return res.text();
+}
+
 
   // Mostrar quem está logado (sem alert)
   const usuario = localStorage.getItem("usuarioLogado");
