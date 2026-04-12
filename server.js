@@ -1,10 +1,11 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const cors = require("cors");
 const app = express();
 
 app.use(express.json());
-app.use(cors({ origin: "https://exploristtools.github.io" }));
+app.use(cors({ origin: "https://exploitsroblox.github.io" }));
 
 //MongoDB
 mongoose.connect("mongodb+srv://Admin:cleusaaposentou@nexusgames.96iuubq.mongodb.net/?appName=nexusgames")
