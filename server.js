@@ -89,16 +89,19 @@ app.post("/salvarBackup", autenticar, async (req, res) => {
   }
 });
 
-// Carregar backup (rota protegida)
 app.get("/carregarBackup", autenticar, async (req, res) => {
   try {
     const backup = await Backup.findOne({ usuario: req.usuario.nome });
-    if (!backup) return res.json({ ok: false, dados: {} });
+    if (!backup) {
+      return res.json({ ok: false, dados: {}, mensagem: "Nenhum backup encontrado." });
+    }
     res.json({ ok: true, dados: backup.dados });
   } catch (err) {
+    console.error("Erro ao carregar backup:", err);
     res.status(500).json({ ok: false, mensagem: "Erro ao carregar backup: " + err.message });
   }
 });
+
 
 app.get("/dadosSecretos", autenticar, (req, res) => {
   res.send(`Bem-vindo, ${req.usuario.nome}! Aqui estão seus dados secretos.`);

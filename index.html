@@ -23,6 +23,7 @@
       min-height: 150px;
       height: auto;
       text-align: center;
+      position: relative;
     }
     h2 {
       color: #6a1b9a;
@@ -96,7 +97,7 @@
       word-break: break-word;
     }
     .hidden {
-      display: none;
+      display: none !important;
     }
     .MainButton {
     position: absolute;
@@ -104,8 +105,9 @@
     top: -2.05rem;
     font-family: "fonte2";
     left: 50%;
-    top: 22%;
+    top: -13%;
     transform: translate(-50%);
+    z-index: 10;
     box-sizing: border-box;
     min-width: 10rem;
     padding: 0.5rem 0.625rem;
@@ -130,10 +132,62 @@
       color: #ffffff;
       margin-right: 300px;
     }
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 35%;
+      height: 10%;
+      background-image: url("grey.jpg");
+      border-radius: 0.375rem;
+      border: 1px solid black;
+      box-shadow: black 0px 0px 0.3rem 0.1rem inset;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      font-size: 24px;
+      color: #f0f0f0;
+      font-family: "fonte2";
+      transition: opacity 0.5s ease-out;
+      padding: 100px;
+      gap: 10px;
+    }
+    .main-img {
+      width: 660px;
+      height: 200px;
+      border-radius: 0.375rem;
+      border: 0.0625rem solid transparent;
+      box-shadow: black 0px 0px 0.3rem 0.1rem inset;
+      border-inline: 0.0625rem solid transparent;
+      border-color: #fff;
+      margin-top: 0px;
+      margin-top: -10px;
+    }
+    .loading-img {
+      width: 660px;
+      height: 40px;
+      margin-top: 0px;
+    }
+    .loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .container.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
     
   </style>
 </head>
 <body>
+  <div id="loading" class="loading">
+    <img class="main-img" src="image.png" alt="Carregando...">
+    <img class="loading-img" src="loading.gif" alt="Carregando...">
+  </div>
+  
   <div class="container">
     <!-- Formulário de Login -->
     <div class="MainButton"><strong>ENTRAR</strong></div>
@@ -163,10 +217,39 @@
   <div id="message" class="message"></div>
 
   <script>
+    // Menu de carregamento
+    const loadingScreen = document.getElementById("loading");
+    const container = document.querySelector(".container");
+
+    // Container começa invisível
+    container.classList.add("hidden");
+
+    // Após 5 segundos, esconder o loading e mostrar o container
+    setTimeout(() => {
+      loadingScreen.classList.add("hidden");
+      container.classList.remove("hidden");
+    }, 6000);
+
     function toggleForms() {
       document.getElementById("loginSection").classList.toggle("hidden");
       document.getElementById("registerSection").classList.toggle("hidden");
     }
+
+    // Sistema de aleatorização de main-img
+    const images = ["image.png", "image2.png", "image3.png", "image4.png", "image5.png", "image6.png", "image7.png", "image8.png", "image9.png", "image10.png", "image11.png", "image12.png", "image13.png", "image14.png", "image15.png", "image16.png"];
+    const mainImgElement = document.querySelector(".main-img");
+
+    function getRandomImage() {
+      return images[Math.floor(Math.random() * images.length)];
+    }
+
+    // Muda a imagem a cada 2 segundos
+    setInterval(() => {
+      mainImgElement.src = getRandomImage();
+    }, 2000);
+
+    // Muda a primeira imagem imediatamente
+    mainImgElement.src = getRandomImage();
   </script>
   <script>
   const API_URL = "https://login-g50h.onrender.com";
