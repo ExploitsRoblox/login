@@ -41,6 +41,25 @@ app.post("/registrar", async (req, res) => {
   }
 });
 
+app.get('/api/ultimo-commit', async (req, res) => {
+    const owner = "exploitsroblox";
+    const repo = "games";
+
+    try {
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits`, {
+            headers: {
+                "Authorization": `token ${process.env.GITHUB_TOKEN}`
+            }
+        });
+
+        const commits = await response.json();
+        const ultimoCommit = commits[0].commit.committer.date;
+        res.json({ date: ultimoCommit });
+    } catch (error) {
+        res.status(500).json({ error: "Erro ao buscar commit" });
+    }
+});
+
 // Login
 app.post("/login", async (req, res) => {
   try {
