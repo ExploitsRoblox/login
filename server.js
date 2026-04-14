@@ -15,10 +15,17 @@ mongoose.connect("mongodb+srv://Admin:cleusaaposentou@nexusgames.96iuubq.mongodb
   .then(() => console.log("Conectado ao MongoDB Atlas"))
   .catch(err => console.error("Erro na conexão:", err));
 
-// Modelo
+// Modelo Usuario
 const Usuario = mongoose.model('Usuario', new mongoose.Schema({
   nome: { type: String, unique: true },
   senha: String
+}));
+
+// Modelo Backup
+const Backup = mongoose.model('Backup', new mongoose.Schema({
+  usuario: { type: String, required: true, unique: true },
+  dados: { type: Object, default: {} },
+  atualizadoEm: { type: Date, default: Date.now }
 }));
 
 // Cadastro
