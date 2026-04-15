@@ -94,6 +94,30 @@ app.get('/teste-cors', (req, res) => {
   res.json({ ok: true, mensagem: "CORS funcionando corretamente!" });
 });
 
+// Verificar e renovar token
+app.post('/renovar-token', (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  
+  if (!token) {
+    return res.status(401).json({ ok: false, mensagem: "Token não fornecido!" });
+  }
+  
+  jwt.verify(token, SECRET, { ignoreExpiration: true }, (err, usuario) => {
+    if (err) {
+      return res.status(403).json({ ok: false, mensagem: "Token inválido!" });
+    }
+    
+    // Gerar novo token
+    const novoToken = jwt.sign({ 
+      nome: usuario.nome, 
+      isAdmin: usuario.isAdmin 
+    }, SECRET, { expiresIn: "1h" });
+    
+    res.json({ ok: true, token: novoToken, isAdmin: usuario.isAdmin });
+  });
+});
+
 // Login
 app.post("/login", async (req, res) => {
   try {
@@ -118,14 +142,21 @@ app.post("/login", async (req, res) => {
 function autenticar(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
+  
+  console.log('[AUTH] Header:', authHeader?.substring(0, 50) + '...');
+  console.log('[AUTH] Token existe:', !!token);
+  
   if (!token) {
+    console.log('[AUTH] ERRO: Token não fornecido!');
     return res.status(401).json({ ok: false, mensagem: "Token não fornecido!" });
   }
 
   jwt.verify(token, SECRET, (err, usuario) => {
     if (err) {
-      return res.status(403).json({ ok: false, mensagem: "Token inválido!" });
+      console.log('[AUTH] ERRO ao verificar token:', err.message);
+      return res.status(403).json({ ok: false, mensagem: "Token inválido ou expirado! " + err.message });
     }
+    console.log('[AUTH] Token válido para usuário:', usuario.nome);
     req.usuario = usuario;
     next();
   });
