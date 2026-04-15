@@ -94,30 +94,6 @@ app.get('/teste-cors', (req, res) => {
   res.json({ ok: true, mensagem: "CORS funcionando corretamente!" });
 });
 
-// Verificar e renovar token
-app.post('/renovar-token', (req, res) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-  
-  if (!token) {
-    return res.status(401).json({ ok: false, mensagem: "Token não fornecido!" });
-  }
-  
-  jwt.verify(token, SECRET, { ignoreExpiration: true }, (err, usuario) => {
-    if (err) {
-      return res.status(403).json({ ok: false, mensagem: "Token inválido!" });
-    }
-    
-    // Gerar novo token
-    const novoToken = jwt.sign({ 
-      nome: usuario.nome, 
-      isAdmin: usuario.isAdmin 
-    }, SECRET, { expiresIn: "1h" });
-    
-    res.json({ ok: true, token: novoToken, isAdmin: usuario.isAdmin });
-  });
-});
-
 // Login
 app.post("/login", async (req, res) => {
   try {
@@ -193,8 +169,11 @@ app.get("/carregarBackup", autenticar, async (req, res) => {
 
 // === ROTAS DE ADMIN ===
 function verificarAdmin(req, res, next) {
-  if (!req.usuario.isAdmin) {
-    return res.status(403).json({ ok: false, mensagem: "Acesso negado! Apenas administradores." });
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  
+  if (!token || token !== process.env.ADMIN_TOKEN) {
+    return res.status(403).json({ ok: false, mensagem: "Acesso negado! Token de administrador inválido." });
   }
   next();
 }
