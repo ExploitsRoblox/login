@@ -143,11 +143,34 @@ function autenticar(req, res, next) {
 app.post("/salvarBackup", autenticar, async (req, res) => {
   try {
     const { dados } = req.body;
+    
+    // Validar tamanho máximo (500KB)
+    const tamanho = JSON.stringify(dados).length;
+    if (tamanho > 500 * 1024) {
+      return res.status(413).json({ 
+        ok: false, 
+        mensagem: `Backup muito grande (${(tamanho/1024).toFixed(2)}KB). Máximo: 500KB` 
+      });
+    }
+
+    // Salvar backup com estrutura otimizada
     await Backup.updateOne(
       { usuario: req.usuario.nome },
-      { dados, atualizadoEm: new Date() },
+      { 
+        dados: {
+          dados: dados.dados || {},
+          achievements: dados.achievements || [],
+          unlockedGames: dados.unlockedGames || [],
+          purchasedItems: dados.purchasedItems || [],
+          preferences: dados.preferences || {},
+          timestamp: dados.timestamp || new Date().toISOString()
+        },
+        atualizadoEm: new Date() 
+      },
       { upsert: true }
     );
+    
+    console.log(`[BACKUP] Usuário ${req.usuario.nome} - ${(tamanho/1024).toFixed(2)}KB`);
     res.json({ ok: true, mensagem: "Backup salvo com sucesso!" });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro ao salvar backup: " + err.message });
@@ -157,10 +180,25 @@ app.post("/salvarBackup", autenticar, async (req, res) => {
 app.get("/carregarBackup", autenticar, async (req, res) => {
   try {
     const backup = await Backup.findOne({ usuario: req.usuario.nome });
-    if (!backup) {
-      return res.json({ ok: false, dados: {}, mensagem: "Nenhum backup encontrado." });
+    
+    if (!backup || !backup.dados) {
+      return res.json({ ok: false, dados: null, mensagem: "Nenhum backup encontrado." });
     }
-    res.json({ ok: true, dados: backup.dados });
+
+    // Retornar estrutura otimizada
+    const dadosRetorno = {
+      dados: backup.dados.dados || {},
+      achievements: backup.dados.achievements || [],
+      unlockedGames: backup.dados.unlockedGames || [],
+      purchasedItems: backup.dados.purchasedItems || [],
+      preferences: backup.dados.preferences || {},
+      timestamp: backup.dados.timestamp || backup.atualizadoEm.toISOString()
+    };
+
+    const tamanho = JSON.stringify(dadosRetorno).length;
+    console.log(`[RESTORE] Usuário ${req.usuario.nome} - ${(tamanho/1024).toFixed(2)}KB`);
+    
+    res.json({ ok: true, dados: dadosRetorno });
   } catch (err) {
     console.error("Erro ao carregar backup:", err);
     res.status(500).json({ ok: false, mensagem: "Erro ao carregar backup: " + err.message });
@@ -169,11 +207,8 @@ app.get("/carregarBackup", autenticar, async (req, res) => {
 
 // === ROTAS DE ADMIN ===
 function verificarAdmin(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-  
-  if (!token || token !== process.env.ADMIN_TOKEN) {
-    return res.status(403).json({ ok: false, mensagem: "Acesso negado! Token de administrador inválido." });
+  if (!req.usuario || !req.usuario.isAdmin) {
+    return res.status(403).json({ ok: false, mensagem: "Acesso negado! Você não é administrador." });
   }
   next();
 }
