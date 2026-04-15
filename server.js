@@ -7,9 +7,12 @@ const app = express();
 
 const SECRET = process.env.JWT_SECRET || "stevejobs"; // use variável de ambiente no Render
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Aumentar limite de tamanho
 app.use(cors({
-    origin: "https://exploitsroblox.github.io"
+    origin: ["https://exploitsroblox.github.io", "http://localhost:3000", "http://localhost:5500"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 //MongoDB
