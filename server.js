@@ -9,8 +9,14 @@ const SECRET = process.env.JWT_SECRET || "stevejobs"; // use variável de ambien
 
 app.use(express.json());
 app.use(cors({
-  origin: "https://exploitsroblox.github.io"
+  origin: ["https://exploitsroblox.github.io", "http://localhost:3000", "http://localhost:5500"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// Preflight requests
+app.options('*', cors());
 
 //MongoDB
 mongoose.connect("mongodb+srv://Admin:cleusaaposentou@nexusgames.96iuubq.mongodb.net/?appName=nexusgames")
@@ -84,6 +90,11 @@ app.get('/api/ultimo-commit', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: "Erro ao buscar commit" });
     }
+});
+
+// Teste de CORS
+app.get('/teste-cors', (req, res) => {
+  res.json({ ok: true, mensagem: "CORS funcionando corretamente!" });
 });
 
 // Login
