@@ -287,22 +287,33 @@ app.get("/admin/listar-usuarios", autenticar, verificarAdmin, async (req, res) =
 // === ENDPOINTS DE LEADERBOARD ===
 app.get("/leaderboard", async (req, res) => {
   try {
-    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, _id: 0 }).sort({ tempo_jogo: -1 }).limit(10);
+    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, _id: 0 })
+      .sort({ tempo_jogo: -1 })
+      .limit(10)
+      .lean(); // Converter para objeto puro do JavaScript
     
     // Distribuir prêmios
-    for (let i = 0; i < usuarios.length; i++) {
+    const usuariosComPremio = usuarios.map((user, index) => {
       let premio = 0;
-      if (i === 0) premio = 10000;
-      else if (i === 1) premio = 5000;
-      else if (i === 2) premio = 2000;
-      else if (i >= 3 && i <= 9) premio = 1500;
+      if (index === 0) premio = 10000;
+      else if (index === 1) premio = 5000;
+      else if (index === 2) premio = 2000;
+      else if (index >= 3 && index <= 9) premio = 1500;
       
-      usuarios[i].premio = premio;
-      usuarios[i].posicao = i + 1;
-    }
+      return {
+        nome: user.nome,
+        tempo_jogo: user.tempo_jogo || 0,
+        moedas: user.moedas || 0,
+        foto_perfil: user.foto_perfil || '',
+        premio: premio,
+        posicao: index + 1
+      };
+    });
     
-    res.json({ ok: true, usuarios });
+    console.log('[LEADERBOARD] Retornando:', usuariosComPremio.length, 'usuários');
+    res.json({ ok: true, usuarios: usuariosComPremio });
   } catch (err) {
+    console.error('[LEADERBOARD] Erro:', err);
     res.status(500).json({ ok: false, mensagem: "Erro ao obter leaderboard: " + err.message });
   }
 });
