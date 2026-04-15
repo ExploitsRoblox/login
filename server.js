@@ -12,9 +12,6 @@ app.use(cors({
     origin: "https://exploitsroblox.github.io"
 }));
 
-// Preflight requests - maneira alternativa de configurar
-app.options('/:path*', cors());
-
 //MongoDB
 mongoose.connect("mongodb+srv://Admin:cleusaaposentou@nexusgames.96iuubq.mongodb.net/?appName=nexusgames")
   .then(() => console.log("Conectado ao MongoDB Atlas"))
