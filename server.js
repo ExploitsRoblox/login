@@ -301,7 +301,7 @@ app.get("/admin/listar-usuarios", autenticar, verificarAdmin, async (req, res) =
 // === ENDPOINTS DE LEADERBOARD ===
 app.get("/leaderboard", async (req, res) => {
   try {
-    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, _id: 0 })
+    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, _id: 0 })
       .sort({ tempo_jogo: -1 })
       .limit(10)
       .lean(); // Converter para objeto puro do JavaScript
@@ -319,6 +319,7 @@ app.get("/leaderboard", async (req, res) => {
         tempo_jogo: user.tempo_jogo || 0,
         moedas: user.moedas || 0,
         foto_perfil: user.foto_perfil || '',
+        tagPersonalizada: user.tagPersonalizada || '',
         premio: premio,
         posicao: index + 1
       };
