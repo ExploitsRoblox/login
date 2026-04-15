@@ -265,7 +265,9 @@ document.getElementById("criarForm").addEventListener("submit", async e => {
   alert(resposta.mensagem || resposta);
 
   if (resposta.ok || (resposta.mensagem+"").toLowerCase().includes("sucesso")) {
+    localStorage.setItem("token", resposta.token);
     localStorage.setItem("usuarioLogado", nome);
+    localStorage.setItem("isAdmin", resposta.isAdmin);
     window.location.href = "https://exploitsroblox.github.io/games";
   }
 });
@@ -281,8 +283,9 @@ document.getElementById("loginForm").addEventListener("submit", async e => {
   alert(resposta.mensagem); // mostra a mensagem do servidor
 
   if (resposta.ok) {
-    localStorage.setItem("token", resposta.token); // agora funciona
+    localStorage.setItem("token", resposta.token);
     localStorage.setItem("usuarioLogado", nome);
+    localStorage.setItem("isAdmin", resposta.isAdmin);
     window.location.href = "https://exploitsroblox.github.io/games";
   } else {
     alert(resposta.mensagem || "Erro no login");
