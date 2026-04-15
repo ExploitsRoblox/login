@@ -8,7 +8,9 @@ const app = express();
 const SECRET = process.env.JWT_SECRET || "stevejobs"; // use variável de ambiente no Render
 
 app.use(express.json());
-app.use(cors({ origin: "https://exploitsroblox.github.io" }));
+app.use(cors({
+  origin: "https://exploitsroblox.github.io"
+}));
 
 //MongoDB
 mongoose.connect("mongodb+srv://Admin:cleusaaposentou@nexusgames.96iuubq.mongodb.net/?appName=nexusgames")
