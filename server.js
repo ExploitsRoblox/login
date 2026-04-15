@@ -9,10 +9,7 @@ const SECRET = process.env.JWT_SECRET || "stevejobs"; // use variável de ambien
 
 app.use(express.json());
 app.use(cors({
-  origin: ["https://exploitsroblox.github.io", "http://localhost:3000", "http://localhost:5500"],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"]
+    origin: "https://exploitsroblox.github.io"
 }));
 
 // Preflight requests - maneira alternativa de configurar
