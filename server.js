@@ -106,16 +106,21 @@ app.post("/login", async (req, res) => {
 });
 
 function autenticar(req, res, next) {
-  const authHeader = req.headers['authorization'];
+  const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
-  if (!token) return res.status(401).send("Token não fornecido!");
+  if (!token) {
+    return res.status(401).json({ ok: false, mensagem: "Token não fornecido!" });
+  }
 
   jwt.verify(token, SECRET, (err, usuario) => {
-    if (err) return res.status(403).send("Token inválido!");
-    req.usuario = usuario; // guarda info do usuário
+    if (err) {
+      return res.status(403).json({ ok: false, mensagem: "Token inválido!" });
+    }
+    req.usuario = usuario;
     next();
   });
 }
+
 
 // Salvar backup (rota protegida)
 app.post("/salvarBackup", autenticar, async (req, res) => {
