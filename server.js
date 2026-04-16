@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const app = express();
-
+const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || "stevejobs"; // use variável de ambiente no Render
 
 app.use(express.json({ limit: '50mb' })); // Aumentar limite de tamanho
@@ -647,4 +647,6 @@ app.get("/dadosSecretos", autenticar, (req, res) => {
   res.send(`Bem-vindo, ${req.usuario.nome}! Aqui estão seus dados secretos.`);
 });
 
-const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Servidor rodando na porta ${PORT}`);
+});
