@@ -32,7 +32,9 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
   tagPersonalizada: { type: String, default: '' },
   corTagPersonalizada: { type: String, default: '#a855f7' }, // roxo padrão
   tipoCorTag: { type: String, default: 'comum' }, // 'comum' ou 'especial'
-  foto_perfil: { type: String, default: '' }
+  foto_perfil: { type: String, default: '' },
+  corBordaPerfil: { type: String, default: '#ffd700' }, // cor da borda do perfil
+  idCorBordaPerfil: { type: String, default: 'gold' } // id da cor de borda selecionada
 }));
 
 // Modelo Backup
@@ -389,6 +391,54 @@ app.post("/admin/mudar-foto-usuario", autenticar, verificarYohanan, async (req, 
   }
 });
 
+// === ADMIN: Mudar Cor da Borda do Usuário ===
+app.post("/admin/mudar-cor-borda-usuario", autenticar, verificarAdmin, async (req, res) => {
+  try {
+    const { nomeUsuario, corId } = req.body;
+
+    if (!corId) {
+      return res.status(400).json({ ok: false, mensagem: "ID da cor inválido!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    // Mapeamento de cores
+    const CORES_MAPEAMENTO = {
+      'silver': '#c0c0c0',
+      'red': '#ff0000',
+      'blue': '#0000ff',
+      'green': '#22c55e',
+      'orange': '#ff8a00',
+      'yellow': '#ffff00',
+      'lime': '#00ff00',
+      'gold': '#ffd700',
+      'purple': '#a855f7',
+      'cyan': '#00d4ff',
+      'pink': '#ff00cc',
+      'lime-glow': '#39ff14',
+      'sky-blue': '#87ceeb',
+      'rainbow': 'linear-gradient(90deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff0000)'
+    };
+
+    const corValue = CORES_MAPEAMENTO[corId];
+    if (!corValue) {
+      return res.status(400).json({ ok: false, mensagem: "Cor desconhecida!" });
+    }
+
+    usuario.corBordaPerfil = corValue;
+    usuario.idCorBordaPerfil = corId;
+    await usuario.save();
+
+    console.log(`[BORDA-ADMIN] Admin alterou cor da borda de ${nomeUsuario} para: ${corId}`);
+    res.json({ ok: true, mensagem: `✅ Cor da borda de ${nomeUsuario} alterada para ${corId}!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
 // Botão de Emergência - Resetar Admins (apenas Yohanan)
 app.post("/admin/emergencia-reset", autenticar, verificarYohanan, async (req, res) => {
   try {
@@ -412,7 +462,7 @@ app.post("/admin/emergencia-reset", autenticar, verificarYohanan, async (req, re
 // === ENDPOINTS DE LEADERBOARD ===
 app.get("/leaderboard", async (req, res) => {
   try {
-    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, _id: 0 })
+    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, corBordaPerfil: 1, idCorBordaPerfil: 1, _id: 0 })
       .sort({ tempo_jogo: -1 })
       .limit(10)
       .lean(); // Converter para objeto puro do JavaScript
@@ -433,6 +483,8 @@ app.get("/leaderboard", async (req, res) => {
         tagPersonalizada: user.tagPersonalizada || '',
         corTagPersonalizada: user.corTagPersonalizada || '#a855f7',
         tipoCorTag: user.tipoCorTag || 'comum',
+        corBordaPerfil: user.corBordaPerfil || '#ffd700',
+        idCorBordaPerfil: user.idCorBordaPerfil || 'gold',
         premio: premio,
         posicao: index + 1
       };
@@ -532,7 +584,7 @@ app.get("/dados-usuario", autenticar, async (req, res) => {
 // === ENDPOINT PARA OBTER ITENS COMPRADOS ===
 app.get("/itens-comprados", autenticar, async (req, res) => {
   try {
-    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { itensComprados: 1, _id: 0 });
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { itensComprados: 1, corBordaPerfil: 1, idCorBordaPerfil: 1, _id: 0 });
     
     if (!usuario) {
       return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
@@ -540,7 +592,9 @@ app.get("/itens-comprados", autenticar, async (req, res) => {
     
     res.json({ 
       ok: true, 
-      itens: usuario.itensComprados || []
+      itens: usuario.itensComprados || [],
+      corBordaPerfil: usuario.corBordaPerfil || '#ffd700',
+      idCorBordaPerfil: usuario.idCorBordaPerfil || 'gold'
     });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro ao obter itens: " + err.message });
@@ -643,8 +697,172 @@ app.post("/atualizar-tempo-jogo", autenticar, async (req, res) => {
 });
 
 
+// === ENDPOINT PARA MUDAR COR DA BORDA DO PERFIL ===
+app.post("/mudar-cor-borda", autenticar, async (req, res) => {
+  try {
+    const { corId } = req.body;
+
+    if (!corId) {
+      return res.status(400).json({ ok: false, mensagem: "ID da cor inválido!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    // Verificar se o usuário possui a cor desbloqueada
+    if (!usuario.itensComprados.includes(`cor-${corId}`)) {
+      return res.status(403).json({ ok: false, mensagem: "Você não possui essa cor de borda desbloqueada!" });
+    }
+
+    // Mapeamento de cores
+    const CORES_MAPEAMENTO = {
+      'silver': '#c0c0c0',
+      'red': '#ff0000',
+      'blue': '#0000ff',
+      'green': '#22c55e',
+      'orange': '#ff8a00',
+      'yellow': '#ffff00',
+      'lime': '#00ff00',
+      'gold': '#ffd700',
+      'purple': '#a855f7',
+      'cyan': '#00d4ff',
+      'pink': '#ff00cc',
+      'lime-glow': '#39ff14',
+      'sky-blue': '#87ceeb',
+      'rainbow': 'linear-gradient(90deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff0000)'
+    };
+
+    const corValue = CORES_MAPEAMENTO[corId];
+    if (!corValue) {
+      return res.status(400).json({ ok: false, mensagem: "Cor desconhecida!" });
+    }
+
+    usuario.corBordaPerfil = corValue;
+    usuario.idCorBordaPerfil = corId;
+    await usuario.save();
+
+    console.log(`[BORDA-COLOR] ${req.usuario.nome} alterou cor da borda para: ${corId}`);
+    res.json({ ok: true, mensagem: `✅ Cor da borda alterada para ${corId}!`, corBordaPerfil: corValue });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
 app.get("/dadosSecretos", autenticar, (req, res) => {
   res.send(`Bem-vindo, ${req.usuario.nome}! Aqui estão seus dados secretos.`);
+});
+
+// === SISTEMA DE LOOTBOX ===
+const LOOTBOX_CONFIG = {
+  comum: {
+    price: 100,
+    rewards: [
+      { type: 'moedas', amount: 100, chance: 0.50 },
+      { type: 'moedas', amount: 200, chance: 0.30 },
+      { type: 'moedas', amount: 50, chance: 0.20 }
+    ]
+  },
+  rara: {
+    price: 500,
+    rewards: [
+      { type: 'moedas', amount: 500, chance: 0.30 },
+      { type: 'moedas', amount: 1000, chance: 0.25 },
+      { type: 'moedas', amount: 250, chance: 0.10 },
+      { type: 'item', itemId: 'cor-blue', name: 'Cor Azul', chance: 0.10 },
+      { type: 'item', itemId: 'cor-red', name: 'Cor Vermelho', chance: 0.08 },
+      { type: 'item', itemId: 'cor-green', name: 'Cor Verde', chance: 0.08 },
+      { type: 'item', itemId: 'cor-orange', name: 'Cor Laranja', chance: 0.09 }
+    ]
+  },
+  epica: {
+    price: 1500,
+    rewards: [
+      { type: 'moedas', amount: 2000, chance: 0.25 },
+      { type: 'moedas', amount: 3000, chance: 0.20 },
+      { type: 'moedas', amount: 1500, chance: 0.10 },
+      { type: 'item', itemId: 'cor-purple', name: 'Cor Roxa Neon', chance: 0.12 },
+      { type: 'item', itemId: 'cor-cyan', name: 'Cor Ciano', chance: 0.12 },
+      { type: 'item', itemId: 'cor-pink', name: 'Cor Rosa Néon', chance: 0.11 },
+      { type: 'item', itemId: 'cor-gold', name: 'Cor Dourada', chance: 0.10 }
+    ]
+  },
+  lendaria: {
+    price: 5000,
+    rewards: [
+      { type: 'moedas', amount: 5000, chance: 0.20 },
+      { type: 'moedas', amount: 7500, chance: 0.15 },
+      { type: 'moedas', amount: 10000, chance: 0.10 },
+      { type: 'item', itemId: 'cor-lime-glow', name: 'Cor Verde Neon', chance: 0.12 },
+      { type: 'item', itemId: 'cor-sky-blue', name: 'Cor Azul Céu', chance: 0.12 },
+      { type: 'item', itemId: 'cor-gold', name: 'Cor Dourada Premium', chance: 0.11 },
+      { type: 'item', itemId: 'cor-rainbow', name: '🌈 Arco-Iris (RARA)', chance: 0.20 }
+    ]
+  }
+};
+
+function getRandomReward(rewards) {
+  const random = Math.random();
+  let accumulated = 0;
+
+  for (const reward of rewards) {
+    accumulated += reward.chance;
+    if (random <= accumulated) {
+      return reward;
+    }
+  }
+
+  return rewards[rewards.length - 1];
+}
+
+app.post("/lootbox/abrir", autenticar, async (req, res) => {
+  try {
+    const { type } = req.body;
+    const lootbox = LOOTBOX_CONFIG[type];
+
+    if (!lootbox) {
+      return res.status(400).json({ ok: false, mensagem: "Tipo de lootbox inválido!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    // Verificar moedas
+    if (usuario.moedas < lootbox.price) {
+      return res.status(400).json({ ok: false, mensagem: `❌ Você precisa de ${lootbox.price} moedas!` });
+    }
+
+    // Remover moedas
+    usuario.moedas -= lootbox.price;
+
+    // Selecionar recompensa aleatória
+    const reward = getRandomReward(lootbox.rewards);
+
+    // Aplicar recompensa
+    if (reward.type === 'moedas') {
+      usuario.moedas += reward.amount;
+    } else if (reward.type === 'item') {
+      if (!usuario.itensComprados.includes(reward.itemId)) {
+        usuario.itensComprados.push(reward.itemId);
+      }
+    }
+
+    await usuario.save();
+
+    console.log(`[LOOTBOX] ${req.usuario.nome} abriu lootbox ${type} e ganhou:`, reward);
+
+    res.json({ 
+      ok: true, 
+      mensagem: "Lootbox aberta!",
+      reward: reward,
+      novoSaldo: usuario.moedas
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
 });
 
 app.listen(PORT, () => {
