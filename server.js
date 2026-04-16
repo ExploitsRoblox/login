@@ -341,6 +341,8 @@ app.get("/leaderboard", async (req, res) => {
 app.post("/registrar-compra", autenticar, async (req, res) => {
   try {
     const { itemId, itemNome, preco } = req.body;
+    
+    // Registrar na coleção de compras (log)
     const novaCompra = new Compra({
       usuario: req.usuario.nome,
       itemId,
@@ -348,6 +350,16 @@ app.post("/registrar-compra", autenticar, async (req, res) => {
       preco
     });
     await novaCompra.save();
+    
+    // Adicionar item ao usuário se ainda não tiver
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (usuario) {
+      if (!usuario.itensComprados.includes(itemId)) {
+        usuario.itensComprados.push(itemId);
+        await usuario.save();
+      }
+    }
+    
     res.json({ ok: true, mensagem: "Compra registrada!" });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
