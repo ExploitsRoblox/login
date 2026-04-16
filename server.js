@@ -26,6 +26,8 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
   senha: String,
   moedas: { type: Number, default: 0 },
   isAdmin: { type: Boolean, default: false },
+  isModerator: { type: Boolean, default: false },
+  isVip: { type: Boolean, default: false },
   jogosSecretos: [String],
   itensComprados: [String],
   tempo_jogo: { type: Number, default: 0 },
@@ -65,8 +67,8 @@ app.post("/registrar", async (req, res) => {
     const novoUsuario = new Usuario({ nome, senha: hash });
     await novoUsuario.save();
 
-    const token = jwt.sign({ nome: novoUsuario.nome, isAdmin: novoUsuario.isAdmin }, SECRET, { expiresIn: "1h" });
-    res.json({ ok: true, mensagem: "Conta criada com sucesso!", token, isAdmin: novoUsuario.isAdmin });
+    const token = jwt.sign({ nome: novoUsuario.nome, isAdmin: novoUsuario.isAdmin, isModerator: novoUsuario.isModerator, isVip: novoUsuario.isVip }, SECRET, { expiresIn: "1h" });
+    res.json({ ok: true, mensagem: "Conta criada com sucesso!", token, isAdmin: novoUsuario.isAdmin, isModerator: novoUsuario.isModerator, isVip: novoUsuario.isVip });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro ao criar conta: " + err.message });
   }
@@ -110,8 +112,8 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ ok: false, mensagem: "Senha incorreta!" });
     }
 
-    const token = jwt.sign({ nome: usuario.nome, isAdmin: usuario.isAdmin }, SECRET, { expiresIn: "1h" });
-    res.json({ ok: true, mensagem: "Login realizado com sucesso!", token, isAdmin: usuario.isAdmin });
+    const token = jwt.sign({ nome: usuario.nome, isAdmin: usuario.isAdmin, isModerator: usuario.isModerator, isVip: usuario.isVip }, SECRET, { expiresIn: "1h" });
+    res.json({ ok: true, mensagem: "Login realizado com sucesso!", token, isAdmin: usuario.isAdmin, isModerator: usuario.isModerator, isVip: usuario.isVip });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro no login: " + err.message });
   }
@@ -207,7 +209,7 @@ app.get("/carregarBackup", autenticar, async (req, res) => {
   }
 });
 
-// === ROTAS DE ADMIN ===
+// === MIDDLEWARES DE VERIFICAÇÃO ===
 function verificarAdmin(req, res, next) {
   if (!req.usuario || !req.usuario.isAdmin) {
     return res.status(403).json({ ok: false, mensagem: "Acesso negado! Você não é administrador." });
@@ -215,6 +217,21 @@ function verificarAdmin(req, res, next) {
   next();
 }
 
+function verificarModerador(req, res, next) {
+  if (!req.usuario || (!req.usuario.isModerator && !req.usuario.isAdmin)) {
+    return res.status(403).json({ ok: false, mensagem: "Acesso negado! Você não é moderador." });
+  }
+  next();
+}
+
+function verificarVip(req, res, next) {
+  if (!req.usuario || (!req.usuario.isVip && !req.usuario.isModerator && !req.usuario.isAdmin)) {
+    return res.status(403).json({ ok: false, mensagem: "Acesso negado! Você não é VIP." });
+  }
+  next();
+}
+
+// === ROTAS DE ADMIN ===
 app.post("/admin/adicionar-moedas", autenticar, verificarAdmin, async (req, res) => {
   try {
     const { nomeUsuario, quantidade } = req.body;
@@ -291,9 +308,182 @@ app.post("/admin/definir-admin", autenticar, verificarAdmin, async (req, res) =>
   }
 });
 
+app.post("/admin/definir-moderador", autenticar, verificarAdmin, async (req, res) => {
+  try {
+    const { nomeUsuario } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    usuario.isModerator = true;
+    await usuario.save();
+    
+    res.json({ ok: true, mensagem: `✅ ${nomeUsuario} agora é um moderador!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+app.post("/admin/definir-vip", autenticar, verificarAdmin, async (req, res) => {
+  try {
+    const { nomeUsuario } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    usuario.isVip = true;
+    await usuario.save();
+    
+    res.json({ ok: true, mensagem: `✅ ${nomeUsuario} agora é um VIP!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+app.post("/admin/remover-moderador", autenticar, verificarAdmin, async (req, res) => {
+  try {
+    const { nomeUsuario } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    usuario.isModerator = false;
+    await usuario.save();
+    
+    res.json({ ok: true, mensagem: `✅ ${nomeUsuario} não é mais um moderador!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+app.post("/admin/remover-vip", autenticar, verificarAdmin, async (req, res) => {
+  try {
+    const { nomeUsuario } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    usuario.isVip = false;
+    await usuario.save();
+    
+    res.json({ ok: true, mensagem: `✅ ${nomeUsuario} não é mais um VIP!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
 app.get("/admin/listar-usuarios", autenticar, verificarAdmin, async (req, res) => {
   try {
-    const usuarios = await Usuario.find({}, { nome: 1, moedas: 1, isAdmin: 1, _id: 0 });
+    const usuarios = await Usuario.find({}, { nome: 1, moedas: 1, isAdmin: 1, isModerator: 1, isVip: 1, _id: 0 });
+    res.json({ ok: true, usuarios });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// === ROTAS DE MODERADOR ===
+app.post("/moderador/adicionar-moedas", autenticar, verificarModerador, async (req, res) => {
+  try {
+    const { nomeUsuario, quantidade } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    usuario.moedas = (usuario.moedas || 0) + quantidade;
+    await usuario.save();
+    
+    res.json({ ok: true, mensagem: `✅ ${quantidade} moedas adicionadas a ${nomeUsuario}!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+app.post("/moderador/desbloquear-jogo", autenticar, verificarModerador, async (req, res) => {
+  try {
+    const { nomeUsuario, jogoId } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    if (!usuario.jogosSecretos.includes(jogoId)) {
+      usuario.jogosSecretos.push(jogoId);
+      await usuario.save();
+    }
+    
+    res.json({ ok: true, mensagem: `✅ Jogo ${jogoId} desbloqueado para ${nomeUsuario}!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+app.post("/moderador/adicionar-item", autenticar, verificarModerador, async (req, res) => {
+  try {
+    const { nomeUsuario, itemId } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    if (!usuario.itensComprados.includes(itemId)) {
+      usuario.itensComprados.push(itemId);
+      await usuario.save();
+    }
+    
+    res.json({ ok: true, mensagem: `✅ Item ${itemId} adicionado a ${nomeUsuario}!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+app.get("/moderador/listar-usuarios", autenticar, verificarModerador, async (req, res) => {
+  try {
+    const usuarios = await Usuario.find({}, { nome: 1, moedas: 1, isAdmin: 1, isModerator: 1, isVip: 1, _id: 0 });
+    res.json({ ok: true, usuarios });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// === ROTAS DE VIP ===
+app.post("/vip/adicionar-item", autenticar, verificarVip, async (req, res) => {
+  try {
+    const { nomeUsuario, itemId } = req.body;
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    if (!usuario.itensComprados.includes(itemId)) {
+      usuario.itensComprados.push(itemId);
+      await usuario.save();
+    }
+    
+    res.json({ ok: true, mensagem: `✅ Item ${itemId} adicionado a ${nomeUsuario}!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+app.get("/vip/listar-admins-moderadores", autenticar, verificarVip, async (req, res) => {
+  try {
+    const usuarios = await Usuario.find(
+      { $or: [{ isAdmin: true }, { isModerator: true }, { isVip: true }] },
+      { nome: 1, isAdmin: 1, isModerator: 1, isVip: 1, _id: 0 }
+    );
     res.json({ ok: true, usuarios });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
@@ -303,7 +493,7 @@ app.get("/admin/listar-usuarios", autenticar, verificarAdmin, async (req, res) =
 // === ENDPOINTS DE LEADERBOARD ===
 app.get("/leaderboard", async (req, res) => {
   try {
-    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, _id: 0 })
+    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, isAdmin: 1, isModerator: 1, isVip: 1, _id: 0 })
       .sort({ tempo_jogo: -1 })
       .limit(10)
       .lean(); // Converter para objeto puro do JavaScript
@@ -324,6 +514,9 @@ app.get("/leaderboard", async (req, res) => {
         tagPersonalizada: user.tagPersonalizada || '',
         corTagPersonalizada: user.corTagPersonalizada || '#a855f7',
         tipoCorTag: user.tipoCorTag || 'comum',
+        isAdmin: user.isAdmin || false,
+        isModerator: user.isModerator || false,
+        isVip: user.isVip || false,
         premio: premio,
         posicao: index + 1
       };
@@ -397,7 +590,7 @@ app.post("/definir-tag", autenticar, async (req, res) => {
 // === ENDPOINT PARA OBTER DADOS DO USUÁRIO ===
 app.get("/dados-usuario", autenticar, async (req, res) => {
   try {
-    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { nome: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, tempo_jogo: 1, _id: 0 });
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { nome: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, tempo_jogo: 1, isAdmin: 1, isModerator: 1, isVip: 1, _id: 0 });
     
     if (!usuario) {
       return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
@@ -412,7 +605,10 @@ app.get("/dados-usuario", autenticar, async (req, res) => {
         tagPersonalizada: usuario.tagPersonalizada || '',
         corTagPersonalizada: usuario.corTagPersonalizada || '#a855f7',
         tipoCorTag: usuario.tipoCorTag || 'comum',
-        tempo_jogo: usuario.tempo_jogo || 0
+        tempo_jogo: usuario.tempo_jogo || 0,
+        isAdmin: usuario.isAdmin || false,
+        isModerator: usuario.isModerator || false,
+        isVip: usuario.isVip || false
       }
     });
   } catch (err) {
