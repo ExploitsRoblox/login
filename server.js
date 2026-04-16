@@ -274,6 +274,11 @@ app.post("/admin/adicionar-item", autenticar, verificarAdmin, async (req, res) =
 });
 
 app.post("/admin/definir-admin", autenticar, verificarAdmin, async (req, res) => {
+  // Apenas Yohanan pode promover admins
+  if (!req.usuario || req.usuario.nome !== "Yohanan") {
+    return res.status(403).json({ ok: false, mensagem: "❌ Apenas Yohanan pode promover admins!" });
+  }
+
   try {
     const { nomeUsuario } = req.body;
     const usuario = await Usuario.findOne({ nome: nomeUsuario });
@@ -295,6 +300,110 @@ app.get("/admin/listar-usuarios", autenticar, verificarAdmin, async (req, res) =
   try {
     const usuarios = await Usuario.find({}, { nome: 1, moedas: 1, isAdmin: 1, _id: 0 });
     res.json({ ok: true, usuarios });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// === ROTAS RESTRITAS APENAS PARA YOHANAN ===
+function verificarYohanan(req, res, next) {
+  if (!req.usuario || req.usuario.nome !== "Yohanan") {
+    return res.status(403).json({ ok: false, mensagem: "❌ Apenas Yohanan tem permissão para isso!" });
+  }
+  next();
+}
+
+// Remover Admin (apenas Yohanan)
+app.post("/admin/remover-admin", autenticar, verificarYohanan, async (req, res) => {
+  try {
+    const { nomeUsuario } = req.body;
+
+    // Proteção para não remover Yohanan
+    if (nomeUsuario === "Yohanan") {
+      return res.status(403).json({ ok: false, mensagem: "❌ Você não pode remover admin de Yohanan!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    if (!usuario.isAdmin) {
+      return res.status(400).json({ ok: false, mensagem: "Este usuário não é um administrador!" });
+    }
+
+    usuario.isAdmin = false;
+    await usuario.save();
+
+    res.json({ ok: true, mensagem: `✅ Status de admin removido de ${nomeUsuario}!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Mudar Tag de Usuário (apenas Yohanan)
+app.post("/admin/mudar-tag-usuario", autenticar, verificarYohanan, async (req, res) => {
+  try {
+    const { nomeUsuario, novaTag } = req.body;
+
+    if (!novaTag || novaTag.length < 1 || novaTag.length > 10) {
+      return res.status(400).json({ ok: false, mensagem: "Tag deve ter entre 1 e 10 caracteres!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    usuario.tagPersonalizada = novaTag;
+    await usuario.save();
+
+    console.log(`[TAG-ADMIN] Yohanan alterou a tag de ${nomeUsuario} para: ${novaTag}`);
+    res.json({ ok: true, mensagem: `✅ Tag de ${nomeUsuario} alterada para: ${novaTag}` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Mudar Foto de Perfil de Usuário (apenas Yohanan)
+app.post("/admin/mudar-foto-usuario", autenticar, verificarYohanan, async (req, res) => {
+  try {
+    const { nomeUsuario, novaFoto } = req.body;
+
+    if (!novaFoto || novaFoto.length === 0) {
+      return res.status(400).json({ ok: false, mensagem: "Foto inválida!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    usuario.foto_perfil = novaFoto;
+    await usuario.save();
+
+    console.log(`[PHOTO-ADMIN] Yohanan alterou a foto de ${nomeUsuario}`);
+    res.json({ ok: true, mensagem: `✅ Foto de ${nomeUsuario} atualizada!` });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Botão de Emergência - Resetar Admins (apenas Yohanan)
+app.post("/admin/emergencia-reset", autenticar, verificarYohanan, async (req, res) => {
+  try {
+    // Remover admin de todos os usuários
+    await Usuario.updateMany({}, { isAdmin: false });
+
+    // Definir Yohanan como único admin
+    const yohanan = await Usuario.findOne({ nome: "Yohanan" });
+    if (yohanan) {
+      yohanan.isAdmin = true;
+      await yohanan.save();
+    }
+
+    console.log("[EMERGENCIA] Yohanan acionou o botão de emergência - Admins resetados!");
+    res.json({ ok: true, mensagem: "🚨 Emergência acionada! Todos os admins foram removidos. Apenas Yohanan é admin agora." });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
   }
