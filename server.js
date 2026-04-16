@@ -30,6 +30,8 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
   itensComprados: [String],
   tempo_jogo: { type: Number, default: 0 },
   tagPersonalizada: { type: String, default: '' },
+  corTagPersonalizada: { type: String, default: '#a855f7' }, // roxo padrão
+  tipoCorTag: { type: String, default: 'comum' }, // 'comum' ou 'especial'
   foto_perfil: { type: String, default: '' }
 }));
 
@@ -301,7 +303,7 @@ app.get("/admin/listar-usuarios", autenticar, verificarAdmin, async (req, res) =
 // === ENDPOINTS DE LEADERBOARD ===
 app.get("/leaderboard", async (req, res) => {
   try {
-    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, _id: 0 })
+    const usuarios = await Usuario.find({}, { nome: 1, tempo_jogo: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, _id: 0 })
       .sort({ tempo_jogo: -1 })
       .limit(10)
       .lean(); // Converter para objeto puro do JavaScript
@@ -320,6 +322,8 @@ app.get("/leaderboard", async (req, res) => {
         moedas: user.moedas || 0,
         foto_perfil: user.foto_perfil || '',
         tagPersonalizada: user.tagPersonalizada || '',
+        corTagPersonalizada: user.corTagPersonalizada || '#a855f7',
+        tipoCorTag: user.tipoCorTag || 'comum',
         premio: premio,
         posicao: index + 1
       };
@@ -375,6 +379,114 @@ app.post("/definir-tag", autenticar, async (req, res) => {
     res.json({ ok: true, mensagem: `✅ Tag personalizada definida para: ${tag}` });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// === ENDPOINT PARA OBTER DADOS DO USUÁRIO ===
+app.get("/dados-usuario", autenticar, async (req, res) => {
+  try {
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { nome: 1, moedas: 1, foto_perfil: 1, tagPersonalizada: 1, corTagPersonalizada: 1, tipoCorTag: 1, tempo_jogo: 1, _id: 0 });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    res.json({ 
+      ok: true, 
+      usuario: {
+        nome: usuario.nome,
+        moedas: usuario.moedas || 0,
+        foto_perfil: usuario.foto_perfil || '',
+        tagPersonalizada: usuario.tagPersonalizada || '',
+        corTagPersonalizada: usuario.corTagPersonalizada || '#a855f7',
+        tipoCorTag: usuario.tipoCorTag || 'comum',
+        tempo_jogo: usuario.tempo_jogo || 0
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao obter dados do usuário: " + err.message });
+  }
+});
+
+// === ENDPOINT PARA SINCRONIZAR MOEDAS ===
+app.post("/sincronizar-moedas", autenticar, async (req, res) => {
+  try {
+    const { moedas } = req.body;
+    
+    if (typeof moedas !== 'number' || moedas < 0) {
+      return res.status(400).json({ ok: false, mensagem: "Valor de moedas inválido!" });
+    }
+    
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    usuario.moedas = moedas;
+    await usuario.save();
+    
+    console.log(`[SYNC] Moedas sincronizadas para ${req.usuario.nome}: ${moedas}`);
+    res.json({ ok: true, mensagem: "Moedas sincronizadas!", moedas: usuario.moedas });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao sincronizar moedas: " + err.message });
+  }
+});
+
+// === ENDPOINTS DE COR DE TAG ===
+app.post("/definir-cor-tag", autenticar, async (req, res) => {
+  try {
+    const { cor, tipo } = req.body;
+    
+    if (!cor || !tipo || !['comum', 'especial'].includes(tipo)) {
+      return res.status(400).json({ ok: false, mensagem: "Cor ou tipo inválido!" });
+    }
+
+    // Verificar se o usuário tem permissão para usar este tipo de cor
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    if (tipo === 'especial' && !usuario.itensComprados.includes('cor-especial')) {
+      return res.status(403).json({ ok: false, mensagem: "Você não possui a cor especial!" });
+    }
+
+    if (tipo === 'comum' && !usuario.itensComprados.includes('cor-comum')) {
+      return res.status(403).json({ ok: false, mensagem: "Você não possui a cor comum!" });
+    }
+
+    usuario.corTagPersonalizada = cor;
+    usuario.tipoCorTag = tipo;
+    await usuario.save();
+
+    console.log(`[TAG-COLOR] Cor da tag atualizada para ${req.usuario.nome}: ${cor} (${tipo})`);
+    res.json({ ok: true, mensagem: "Cor da tag atualizada com sucesso!" });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao definir cor da tag: " + err.message });
+  }
+});
+
+// === ENDPOINT PARA ATUALIZAR FOTO DE PERFIL ===
+app.post("/atualizar-foto-perfil", autenticar, async (req, res) => {
+  try {
+    const { foto_perfil } = req.body;
+    
+    if (!foto_perfil || foto_perfil.length === 0) {
+      return res.status(400).json({ ok: false, mensagem: "Foto inválida!" });
+    }
+    
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    usuario.foto_perfil = foto_perfil;
+    await usuario.save();
+    
+    console.log(`[PHOTO] Foto de perfil atualizada para ${req.usuario.nome}`);
+    res.json({ ok: true, mensagem: "Foto de perfil atualizada!", foto_perfil: usuario.foto_perfil });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao atualizar foto: " + err.message });
   }
 });
 
