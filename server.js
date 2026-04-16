@@ -420,6 +420,24 @@ app.get("/dados-usuario", autenticar, async (req, res) => {
   }
 });
 
+// === ENDPOINT PARA OBTER ITENS COMPRADOS ===
+app.get("/itens-comprados", autenticar, async (req, res) => {
+  try {
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { itensComprados: 1, _id: 0 });
+    
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+    
+    res.json({ 
+      ok: true, 
+      itens: usuario.itensComprados || []
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao obter itens: " + err.message });
+  }
+});
+
 // === ENDPOINT PARA SINCRONIZAR MOEDAS ===
 app.post("/sincronizar-moedas", autenticar, async (req, res) => {
   try {
