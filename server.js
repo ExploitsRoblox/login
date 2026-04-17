@@ -245,10 +245,37 @@ app.post("/admin/adicionar-moedas", autenticar, verificarAdmin, async (req, res)
       return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
     }
 
-    usuario.moedas = (usuario.moedas || 0) + quantidade;
-    await usuario.save();
+    // Se for Yohanan (dono), adiciona direto sem aprovação
+    if (req.usuario.nome === "Yohanan") {
+      usuario.moedas = (usuario.moedas || 0) + quantidade;
+      await usuario.save();
+      
+      console.log(`[MOEDAS-DIRETO] Yohanan adicionou ${quantidade} moedas direto a ${nomeUsuario}`);
+      return res.json({ ok: true, mensagem: `✅ ${quantidade} moedas adicionadas direto a ${nomeUsuario}!` });
+    }
+    
+    // Outros admins precisam criar solicitação
+    const solicitacao = new Solicitacao({
+      tipo: 'moedas',
+      solicitadoPor: req.usuario.nome,
+      destinatario: nomeUsuario,
+      descricao: `${req.usuario.nome} quer adicionar ${quantidade} moedas a ${nomeUsuario}`,
+      detalhes: {
+        quantidade: quantidade,
+        motivo: req.body.motivo || 'Sem motivo especificado'
+      }
+    });
 
-    res.json({ ok: true, mensagem: `✅ ${quantidade} moedas adicionadas a ${nomeUsuario}!` });
+    await solicitacao.save();
+
+    console.log(`[AUTORIZAÇÃO] ${req.usuario.nome} criou solicitação para dar ${quantidade} moedas a ${nomeUsuario}`);
+
+    res.json({ 
+      ok: true, 
+      mensagem: "Solicitação enviada para o dono!",
+      solicitacaoId: solicitacao._id,
+      isPendente: true
+    });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
   }
