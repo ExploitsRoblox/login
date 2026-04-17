@@ -34,7 +34,13 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
   tipoCorTag: { type: String, default: 'comum' }, // 'comum' ou 'especial'
   foto_perfil: { type: String, default: '' },
   corBordaPerfil: { type: String, default: '#ffd700' }, // cor da borda do perfil
-  idCorBordaPerfil: { type: String, default: 'gold' } // id da cor de borda selecionada
+  idCorBordaPerfil: { type: String, default: 'gold' }, // id da cor de borda selecionada
+  lootboxes: {
+    comum: { type: Number, default: 0 },
+    rara: { type: Number, default: 0 },
+    epica: { type: Number, default: 0 },
+    lendaria: { type: Number, default: 0 }
+  }
 }));
 
 // Modelo Backup
@@ -51,6 +57,19 @@ const Compra = mongoose.model('Compra', new mongoose.Schema({
   itemNome: { type: String, required: true },
   preco: { type: Number, required: true },
   data: { type: Date, default: Date.now }
+}));
+
+// Modelo Solicitacao (para autorização de ações)
+const Solicitacao = mongoose.model('Solicitacao', new mongoose.Schema({
+  tipo: { type: String, required: true }, // 'moedas', 'item', 'jogo', etc
+  solicitadoPor: { type: String, required: true }, // admin que fez a solicitação
+  destinatario: { type: String, required: true }, // usuário que receberá
+  descricao: { type: String, required: true }, // ex: "Adicionar 1000 moedas"
+  detalhes: { type: Object, default: {} }, // dados específicos da solicitação
+  status: { type: String, default: 'pendente' }, // pendente, aprovada, rejeitada
+  criadaEm: { type: Date, default: Date.now },
+  respondidaEm: { type: Date, default: null },
+  respondidoPor: { type: String, default: null } // quem respondeu
 }));
 
 // Cadastro
@@ -264,6 +283,20 @@ app.post("/admin/adicionar-item", autenticar, verificarAdmin, async (req, res) =
       return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
     }
 
+    // Verificar se é uma lootbox
+    if (itemId.startsWith('lootbox-')) {
+      const tipoLootbox = itemId.replace('lootbox-', '');
+      if (['comum', 'rara', 'epica', 'lendaria'].includes(tipoLootbox)) {
+        if (!usuario.lootboxes) {
+          usuario.lootboxes = { comum: 0, rara: 0, epica: 0, lendaria: 0 };
+        }
+        usuario.lootboxes[tipoLootbox] = (usuario.lootboxes[tipoLootbox] || 0) + 1;
+        await usuario.save();
+        return res.json({ ok: true, mensagem: `✅ Lootbox ${tipoLootbox} adicionada a ${nomeUsuario}!` });
+      }
+    }
+
+    // Item comum
     if (!usuario.itensComprados.includes(itemId)) {
       usuario.itensComprados.push(itemId);
       await usuario.save();
@@ -314,6 +347,166 @@ function verificarYohanan(req, res, next) {
   }
   next();
 }
+
+// === SISTEMA DE AUTORIZAÇÃO/NOTIFICAÇÕES ===
+// Criar solicitação de moedas (apenas admins)
+app.post("/criar-solicitacao-moedas", autenticar, verificarAdmin, async (req, res) => {
+  try {
+    const { nomeUsuario, quantidade } = req.body;
+
+    if (typeof quantidade !== 'number' || quantidade <= 0) {
+      return res.status(400).json({ ok: false, mensagem: "Quantidade deve ser positiva!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    // Criar solicitação
+    const solicitacao = new Solicitacao({
+      tipo: 'moedas',
+      solicitadoPor: req.usuario.nome,
+      destinatario: nomeUsuario,
+      descricao: `${req.usuario.nome} quer adicionar ${quantidade} moedas a ${nomeUsuario}`,
+      detalhes: {
+        quantidade: quantidade,
+        motivo: req.body.motivo || 'Sem motivo especificado'
+      }
+    });
+
+    await solicitacao.save();
+
+    console.log(`[AUTORIZAÇÃO] ${req.usuario.nome} criou solicitação para dar ${quantidade} moedas a ${nomeUsuario}`);
+
+    res.json({ 
+      ok: true, 
+      mensagem: "Solicitação enviada para o dono!",
+      solicitacaoId: solicitacao._id
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Listar solicitações pendentes (notificações)
+app.get("/minhas-solicitacoes", autenticar, async (req, res) => {
+  try {
+    // Apenas Yohanan pode ver as solicitações
+    if (req.usuario.nome !== "Yohanan") {
+      return res.status(403).json({ ok: false, mensagem: "Apenas Yohanan pode visualizar solicitações!" });
+    }
+
+    const solicitacoesPendentes = await Solicitacao.find(
+      { status: 'pendente' },
+      { _id: 1, tipo: 1, solicitadoPor: 1, destinatario: 1, descricao: 1, detalhes: 1, criadaEm: 1 }
+    ).sort({ criadaEm: -1 });
+
+    res.json({ 
+      ok: true, 
+      solicitacoes: solicitacoesPendentes,
+      total: solicitacoesPendentes.length
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Listar histórico de solicitações
+app.get("/historico-solicitacoes", autenticar, async (req, res) => {
+  try {
+    // Apenas Yohanan pode ver o histórico
+    if (req.usuario.nome !== "Yohanan") {
+      return res.status(403).json({ ok: false, mensagem: "Apenas Yohanan pode visualizar histórico!" });
+    }
+
+    const solicitacoes = await Solicitacao.find(
+      {},
+      { _id: 1, tipo: 1, solicitadoPor: 1, destinatario: 1, descricao: 1, detalhes: 1, status: 1, criadaEm: 1, respondidaEm: 1, respondidoPor: 1 }
+    ).sort({ criadaEm: -1 }).limit(50);
+
+    res.json({ 
+      ok: true, 
+      solicitacoes: solicitacoes
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Aprovar solicitação
+app.post("/aprovar-solicitacao", autenticar, verificarYohanan, async (req, res) => {
+  try {
+    const { solicitacaoId } = req.body;
+
+    const solicitacao = await Solicitacao.findById(solicitacaoId);
+    if (!solicitacao) {
+      return res.status(404).json({ ok: false, mensagem: "Solicitação não encontrada!" });
+    }
+
+    if (solicitacao.status !== 'pendente') {
+      return res.status(400).json({ ok: false, mensagem: "Esta solicitação não está pendente!" });
+    }
+
+    // Aplicar a ação
+    if (solicitacao.tipo === 'moedas') {
+      const usuario = await Usuario.findOne({ nome: solicitacao.destinatario });
+      if (!usuario) {
+        return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+      }
+
+      usuario.moedas = (usuario.moedas || 0) + solicitacao.detalhes.quantidade;
+      await usuario.save();
+    }
+
+    // Marcar como aprovada
+    solicitacao.status = 'aprovada';
+    solicitacao.respondidaEm = new Date();
+    solicitacao.respondidoPor = req.usuario.nome;
+    await solicitacao.save();
+
+    console.log(`[APROVAÇÃO] ${req.usuario.nome} aprovou solicitação #${solicitacaoId}`);
+
+    res.json({ 
+      ok: true, 
+      mensagem: `✅ Solicitação aprovada! ${solicitacao.detalhes.quantidade} moedas foram adicionadas a ${solicitacao.destinatario}.`
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Rejeitar solicitação
+app.post("/rejeitar-solicitacao", autenticar, verificarYohanan, async (req, res) => {
+  try {
+    const { solicitacaoId, motivo } = req.body;
+
+    const solicitacao = await Solicitacao.findById(solicitacaoId);
+    if (!solicitacao) {
+      return res.status(404).json({ ok: false, mensagem: "Solicitação não encontrada!" });
+    }
+
+    if (solicitacao.status !== 'pendente') {
+      return res.status(400).json({ ok: false, mensagem: "Esta solicitação não está pendente!" });
+    }
+
+    // Marcar como rejeitada
+    solicitacao.status = 'rejeitada';
+    solicitacao.respondidaEm = new Date();
+    solicitacao.respondidoPor = req.usuario.nome;
+    solicitacao.detalhes.motivoRejeicao = motivo || 'Sem motivo especificado';
+    await solicitacao.save();
+
+    console.log(`[REJEIÇÃO] ${req.usuario.nome} rejeitou solicitação #${solicitacaoId}`);
+
+    res.json({ 
+      ok: true, 
+      mensagem: `❌ Solicitação rejeitada!`
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
 
 // Remover Admin (apenas Yohanan)
 app.post("/admin/remover-admin", autenticar, verificarYohanan, async (req, res) => {
@@ -625,6 +818,55 @@ app.post("/sincronizar-moedas", autenticar, async (req, res) => {
   }
 });
 
+// === ADMIN: ADICIONAR LOOTBOXES ===
+app.post("/admin/adicionar-lootbox", autenticar, verificarAdmin, async (req, res) => {
+  try {
+    const { nomeUsuario, tipo, quantidade } = req.body;
+
+    if (!['comum', 'rara', 'epica', 'lendaria'].includes(tipo)) {
+      return res.status(400).json({ ok: false, mensagem: "Tipo de lootbox inválido!" });
+    }
+
+    if (typeof quantidade !== 'number' || quantidade <= 0) {
+      return res.status(400).json({ ok: false, mensagem: "Quantidade deve ser um número positivo!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    if (!usuario.lootboxes) {
+      usuario.lootboxes = { comum: 0, rara: 0, epica: 0, lendaria: 0 };
+    }
+
+    usuario.lootboxes[tipo] = (usuario.lootboxes[tipo] || 0) + quantidade;
+    await usuario.save();
+
+    console.log(`[LOOTBOX-ADMIN] Admin adicionou ${quantidade}x lootbox ${tipo} a ${nomeUsuario}`);
+    res.json({ ok: true, mensagem: `✅ ${quantidade}x Lootbox ${tipo} adicionada(s) a ${nomeUsuario}!`, novaQuantidade: usuario.lootboxes[tipo] });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// === ENDPOINT PARA VER LOOTBOXES DO USUÁRIO ===
+app.get("/minhas-lootboxes", autenticar, async (req, res) => {
+  try {
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { lootboxes: 1, _id: 0 });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    res.json({ 
+      ok: true, 
+      lootboxes: usuario.lootboxes || { comum: 0, rara: 0, epica: 0, lendaria: 0 }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
 // === ENDPOINTS DE COR DE TAG ===
 app.post("/definir-cor-tag", autenticar, async (req, res) => {
   try {
@@ -808,15 +1050,17 @@ function getRandomReward(rewards) {
 
   for (const reward of rewards) {
     accumulated += reward.chance;
-    if (random <= accumulated) {
+    if (random < accumulated) {
       return reward;
     }
   }
 
+  // Retorna o último reward se nenhum foi encontrado (edge case)
   return rewards[rewards.length - 1];
 }
 
-app.post("/lootbox/abrir", autenticar, async (req, res) => {
+// === COMPRAR LOOTBOX ===
+app.post("/comprar-lootbox", autenticar, async (req, res) => {
   try {
     const { type } = req.body;
     const lootbox = LOOTBOX_CONFIG[type];
@@ -838,6 +1082,59 @@ app.post("/lootbox/abrir", autenticar, async (req, res) => {
     // Remover moedas
     usuario.moedas -= lootbox.price;
 
+    // Adicionar lootbox
+    if (!usuario.lootboxes) {
+      usuario.lootboxes = { comum: 0, rara: 0, epica: 0, lendaria: 0 };
+    }
+    usuario.lootboxes[type] = (usuario.lootboxes[type] || 0) + 1;
+
+    // Registrar compra
+    const novaCompra = new Compra({
+      usuario: req.usuario.nome,
+      itemId: `lootbox-${type}`,
+      itemNome: `Lootbox ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+      preco: lootbox.price
+    });
+    await novaCompra.save();
+
+    await usuario.save();
+
+    console.log(`[LOOTBOX-COMPRA] ${req.usuario.nome} comprou 1x lootbox ${type}`);
+
+    res.json({ 
+      ok: true, 
+      mensagem: `✅ Lootbox ${type} comprada!`,
+      novoSaldo: usuario.moedas,
+      quantidade: usuario.lootboxes[type]
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// === ABRIR LOOTBOX ===
+app.post("/lootbox/abrir", autenticar, async (req, res) => {
+  try {
+    const { type } = req.body;
+    const lootbox = LOOTBOX_CONFIG[type];
+
+    if (!lootbox) {
+      return res.status(400).json({ ok: false, mensagem: "Tipo de lootbox inválido!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    // Verificar se possui lootbox
+    if (!usuario.lootboxes || !usuario.lootboxes[type] || usuario.lootboxes[type] <= 0) {
+      return res.status(400).json({ ok: false, mensagem: `❌ Você não possui lootbox ${type}!` });
+    }
+
+    // Remover lootbox
+    usuario.lootboxes[type] -= 1;
+
     // Selecionar recompensa aleatória
     const reward = getRandomReward(lootbox.rewards);
 
@@ -858,7 +1155,8 @@ app.post("/lootbox/abrir", autenticar, async (req, res) => {
       ok: true, 
       mensagem: "Lootbox aberta!",
       reward: reward,
-      novoSaldo: usuario.moedas
+      novoSaldo: usuario.moedas,
+      restantes: usuario.lootboxes[type]
     });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
