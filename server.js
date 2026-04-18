@@ -809,15 +809,16 @@ app.get("/dados-usuario", autenticar, async (req, res) => {
       ok: true, 
       usuario: {
         nome: usuario.nome,
-        moedas: usuario.moedas || 0,
+        moedas: parseInt(usuario.moedas) || 0,
         foto_perfil: usuario.foto_perfil || '',
         tagPersonalizada: usuario.tagPersonalizada || '',
         corTagPersonalizada: usuario.corTagPersonalizada || '#a855f7',
         tipoCorTag: usuario.tipoCorTag || 'comum',
-        tempo_jogo: usuario.tempo_jogo || 0
+        tempo_jogo: parseInt(usuario.tempo_jogo) || 0
       }
     });
   } catch (err) {
+    console.error('[DADOS-USUARIO] Erro:', err);
     res.status(500).json({ ok: false, mensagem: "Erro ao obter dados do usuário: " + err.message });
   }
 });
@@ -847,21 +848,30 @@ app.post("/sincronizar-moedas", autenticar, async (req, res) => {
   try {
     const { moedas } = req.body;
 
-    if (typeof moedas !== 'number' || moedas < 0) {
+    // Validar entrada
+    const moedAsInt = parseInt(moedas);
+    if (isNaN(moedAsInt) || moedAsInt < 0) {
+      console.error(`[SYNC] Valor de moedas inválido: ${moedas}`);
       return res.status(400).json({ ok: false, mensagem: "Valor de moedas inválido!" });
     }
 
     const usuario = await Usuario.findOne({ nome: req.usuario.nome });
     if (!usuario) {
+      console.error(`[SYNC] Usuário não encontrado: ${req.usuario.nome}`);
       return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
     }
 
-    usuario.moedas = moedas;
+    usuario.moedas = moedAsInt;
     await usuario.save();
 
-    console.log(`[SYNC] Moedas sincronizadas para ${req.usuario.nome}: ${moedas}`);
-    res.json({ ok: true, mensagem: "Moedas sincronizadas!", moedas: usuario.moedas });
+    console.log(`[SYNC] ✅ Moedas sincronizadas para ${req.usuario.nome}: ${moedAsInt}`);
+    res.json({ 
+      ok: true, 
+      mensagem: "Moedas sincronizadas com sucesso!", 
+      moedas: usuario.moedas 
+    });
   } catch (err) {
+    console.error('[SYNC] Erro ao sincronizar moedas:', err);
     res.status(500).json({ ok: false, mensagem: "Erro ao sincronizar moedas: " + err.message });
   }
 });
