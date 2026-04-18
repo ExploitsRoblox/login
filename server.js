@@ -439,6 +439,27 @@ app.get("/minhas-solicitacoes", autenticar, async (req, res) => {
   }
 });
 
+// Contar solicitações pendentes (para badge de notificação)
+app.get("/api/solicitacoes-pendentes", autenticar, async (req, res) => {
+  try {
+    // Apenas Yohanan (admin) pode ver as notificações
+    if (req.usuario.nome !== "Yohanan") {
+      return res.json({ ok: true, count: 0 });
+    }
+
+    const count = await Solicitacao.countDocuments({ status: 'pendente' });
+
+    res.json({ 
+      ok: true, 
+      count: count,
+      temNotificacoes: count > 0
+    });
+  } catch (err) {
+    console.error('[NOTIF] Erro ao contar solicitações:', err);
+    res.status(500).json({ ok: false, count: 0, mensagem: "Erro: " + err.message });
+  }
+});
+
 // Listar histórico de solicitações
 app.get("/historico-solicitacoes", autenticar, async (req, res) => {
   try {
