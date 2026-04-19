@@ -86,7 +86,7 @@ app.post("/registrar", async (req, res) => {
     const novoUsuario = new Usuario({ nome, senha: hash });
     await novoUsuario.save();
 
-    const token = jwt.sign({ nome: novoUsuario.nome, isAdmin: novoUsuario.isAdmin }, SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ nome: novoUsuario.nome, isAdmin: novoUsuario.isAdmin }, SECRET, { expiresIn: "30d" });
     res.json({ ok: true, mensagem: "Conta criada com sucesso!", token, isAdmin: novoUsuario.isAdmin });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro ao criar conta: " + err.message });
@@ -131,7 +131,7 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ ok: false, mensagem: "Senha incorreta!" });
     }
 
-    const token = jwt.sign({ nome: usuario.nome, isAdmin: usuario.isAdmin }, SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ nome: usuario.nome, isAdmin: usuario.isAdmin }, SECRET, { expiresIn: "30d" });
     res.json({ ok: true, mensagem: "Login realizado com sucesso!", token, isAdmin: usuario.isAdmin });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro no login: " + err.message });
