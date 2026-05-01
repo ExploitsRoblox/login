@@ -29,6 +29,7 @@ const Usuario = mongoose.model('Usuario', new mongoose.Schema({
   jogosSecretos: [String],
   itensComprados: [String],
   tempo_jogo: { type: Number, default: 0 },
+  spins: { type: Number, default: 0 }, // Giros da roleta
   tagPersonalizada: { type: String, default: '' },
   corTagPersonalizada: { type: String, default: '#a855f7' }, // roxo padrão
   tipoCorTag: { type: String, default: 'comum' }, // 'comum' ou 'especial'
@@ -991,6 +992,103 @@ app.post("/atualizar-tempo-jogo", autenticar, async (req, res) => {
     usuario.tempo_jogo = (usuario.tempo_jogo || 0) + minutos;
     await usuario.save();
     res.json({ ok: true, mensagem: "Tempo atualizado!" });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// === ENDPOINTS DO SISTEMA DE ROLETA ===
+// Obter giros do usuário
+app.get("/user/spins", autenticar, async (req, res) => {
+  try {
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome }, { spins: 1, _id: 0 });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    res.json({ ok: true, spins: usuario.spins || 0 });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao obter giros: " + err.message });
+  }
+});
+
+// Atualizar giros do usuário
+app.put("/user/spins", autenticar, async (req, res) => {
+  try {
+    const { spins } = req.body;
+
+    if (typeof spins !== 'number' || spins < 0) {
+      return res.status(400).json({ ok: false, mensagem: "Valor de spins inválido!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: req.usuario.nome });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    usuario.spins = spins;
+    await usuario.save();
+
+    console.log(`[SPINS] ${req.usuario.nome} agora tem ${spins} giros`);
+    res.json({ ok: true, spins: usuario.spins });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro ao atualizar spins: " + err.message });
+  }
+});
+
+// Adicionar giros a um usuário (apenas Yohanan)
+app.post("/admin/adicionar-giros", autenticar, async (req, res) => {
+  try {
+    // Apenas Yohanan pode usar
+    if (req.usuario.nome !== "Yohanan") {
+      return res.status(403).json({ ok: false, mensagem: "❌ Apenas Yohanan pode adicionar giros!" });
+    }
+
+    const { nomeUsuario, quantidade } = req.body;
+
+    if (typeof quantidade !== 'number' || quantidade <= 0) {
+      return res.status(400).json({ ok: false, mensagem: "Quantidade deve ser um número positivo!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    usuario.spins = (usuario.spins || 0) + quantidade;
+    await usuario.save();
+
+    console.log(`[GIROS-ADMIN] Yohanan adicionou ${quantidade} giros a ${nomeUsuario}`);
+    res.json({ ok: true, mensagem: `✅ ${quantidade} giro(s) adicionado(s) a ${nomeUsuario}!`, novosGiros: usuario.spins });
+  } catch (err) {
+    res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
+  }
+});
+
+// Adicionar tempo de jogo a um usuário (apenas Yohanan)
+app.post("/admin/adicionar-tempo-jogo", autenticar, async (req, res) => {
+  try {
+    // Apenas Yohanan pode usar
+    if (req.usuario.nome !== "Yohanan") {
+      return res.status(403).json({ ok: false, mensagem: "❌ Apenas Yohanan pode adicionar tempo de jogo!" });
+    }
+
+    const { nomeUsuario, minutos } = req.body;
+
+    if (typeof minutos !== 'number' || minutos <= 0) {
+      return res.status(400).json({ ok: false, mensagem: "Tempo deve ser um número positivo (em minutos)!" });
+    }
+
+    const usuario = await Usuario.findOne({ nome: nomeUsuario });
+    if (!usuario) {
+      return res.status(404).json({ ok: false, mensagem: "Usuário não encontrado!" });
+    }
+
+    usuario.tempo_jogo = (usuario.tempo_jogo || 0) + minutos;
+    await usuario.save();
+
+    console.log(`[TEMPO-ADMIN] Yohanan adicionou ${minutos} minutos a ${nomeUsuario}`);
+    res.json({ ok: true, mensagem: `✅ ${minutos} minuto(s) de tempo de jogo adicionado(s) a ${nomeUsuario}!`, novoTempo: usuario.tempo_jogo });
   } catch (err) {
     res.status(500).json({ ok: false, mensagem: "Erro: " + err.message });
   }
